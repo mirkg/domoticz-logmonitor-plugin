@@ -1,0 +1,150 @@
+<div id="plugin-view"></div>
+
+<link rel="stylesheet" href="/templates/logmonitor/leaflet.css">
+
+<style>
+    .leaflet-container {
+        background-color: white;
+    }
+
+    .logmonitor-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .btn-group {
+        text-align: center;
+    }
+
+    .logmonitor-ace-editor {
+        height: calc(100vh - 270px);
+    }
+</style>
+
+<script type="text/ng-template" id="app/logmonitor/index.html">
+    <div class="container">
+        <div class="logmonitor-header">
+            <div>
+                <a class="btnstylerev" back-button>{{ ::'Back' | translate }}</a>
+            </div>
+
+            <div class="align-right" ng-if="$ctrl.controllerInfo && $ctrl.pluginInfo">
+                <div>{{ $ctrl.getVersionString() }}</div>
+            </div>
+        </div>
+
+        <h2 class="page-header">Logmonitor</h2>
+
+        <h3 class="align-right"> 
+            Status: <div class="align-right" ng-if="$ctrl.controllerInfo">{{ $ctrl.getBackendStautsString() }} <a ng-if="$ctrl.controllerInfo.AuthURL" href="{{ $ctrl.controllerInfo.AuthURL }}" target="_blank">{{ $ctrl.controllerInfo.AuthURL }}</a></div>
+        </h3>
+
+        <ul id="tabs" class="nav nav-tabs sub-tabs" data-tabs="tabs">
+            <li class="active"><a data-target="#logmonitor-devices" data-toggle="tab">Devices</a></li>
+            <li><a data-target="#logmonitor-status" data-toggle="tab">Status</a></li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane active" id="logmonitor-devices">
+                <page-loading-indicator ng-hide="$ctrl.logmonitorDevices"></page-loading-indicator>
+
+                <logmonitor-devices
+                        ng-if="$ctrl.logmonitorDevices"
+                        logmonitor-devices="$ctrl.logmonitorDevices"
+                        domoticz-devices="$ctrl.devices"
+                        on-update="$ctrl.fetchlogmonitorDevices()"
+                        on-update-domoticz-device="$ctrl.refreshDomoticzDevices()"></logmonitor-devices>
+            </div>
+
+            <div class="tab-pane" id="logmonitor-status">
+                <logmonitor-status />
+            </div>
+        </div>
+    </div>
+
+    <logmonitor-fake-devices ng-show="false"></logmonitor-fake-devices>
+</script>
+
+<script type="text/ng-template" id="app/logmonitor/devices.html">
+    <div class="btn-panel align-right">
+        <button class="btn btn-default" ng-click="$ctrl.addLogMonitor()">{{:: 'Add' | translate }}</button>
+        <button class="btn btn-default" ng-click="$ctrl.onUpdate()">{{:: 'Refresh' | translate }}</button>
+    </div>
+
+    <logmonitor-devices-table
+            devices="$ctrl.logmonitorDevices"
+            on-update="$ctrl.onUpdate()"
+            on-select="$ctrl.selectlogmonitorDevice(device)"></logmonitor-devices-table>
+
+    <section ng-if="$ctrl.associatedDevices.length > 0">
+        <h2 class="page-header">{{:: 'Devices' | translate }}</h2>
+        <devices-table devices="$ctrl.associatedDevices" on-update="$ctrl.onUpdateDomoticzDevice()"></devices-table>
+    </section>
+</script>
+
+<script type="text/ng-template" id="app/logmonitor/logmonitorStatus.html">
+    <page-loading-indicator ng-hide="$ctrl.status"></page-loading-indicator>
+
+    <div class="logmonitor-ace-editor js-script-content"></div>
+</script>
+
+<script type="text/ng-template" id="app/logmonitor/addLogModal.html">
+    <div class="modal-header">
+        <h3 class="modal-title">{{:: 'Add new log monitor' | translate }}</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal" name="modalForm">
+            <div class="control-logmonitor">
+                <label class="control-label" for="name">{{:: 'File path' | translate }}:</label>
+                <div class="controls">
+                    <input type="text"
+                           id="name"
+                           class="form-control"
+                           required
+                           minlength="1"
+                           maxlength="100"
+                           ng-model="$ctrl.filePath">
+                </div>
+            </div>
+
+            <div class="control-logmonitor">
+                <label class="control-label" for="id">{{:: 'Regex' | translate }}:</label>
+                <div class="controls">
+                    <input type="text"
+                           id="regex"
+                           class="form-control"
+                           required
+                           minlength="1"
+                           maxlength="100"
+                           ng-model="$ctrl.regex">
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <button type="button"
+                class="btn btn-primary"
+                ng-disabled="modalForm.$invalid || $ctrl.isSaving"
+                ng-click="$ctrl.createLogMonitor()">
+            {{:: 'Add' | translate }}
+        </button>
+
+        <button type="button"
+                class="btn btn-default"
+                ng-click="$dismiss()">
+            {{:: 'Cancel' | translate }}
+        </button>
+    </div>
+</script>
+
+<script>
+    require(['../templates/logmonitor'], function() {
+        angular.element(document).injector().invoke(function($compile) {
+            var $div = angular.element('<logmonitor-plugin></logmonitor-plugin>');
+            angular.element('#plugin-view').append($div);
+
+            var scope = angular.element($div).scope();
+            $compile($div)(scope);
+        });
+    });
+</script>
