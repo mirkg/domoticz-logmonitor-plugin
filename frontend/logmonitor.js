@@ -114,13 +114,13 @@ define([
             }
         });
 
-        function logmonitorPluginController($element, $scope, Device, domoticzApi, dzNotification, logmonitor) {
+        function logmonitorPluginController($element, $scope, $rootScope, Device, domoticzApi, dzNotification, logmonitor) {
             var $ctrl = this;
 
             $ctrl.selectPlugin = selectPlugin;
             $ctrl.getBackendStautsString = getBackendStautsString;
             $ctrl.getVersionString = getVersionString;
-            $ctrl.fetchlogmonitorDevices = fetchlogmonitorDevices;
+            $ctrl.fetchLogmonitorDevices = fetchLogmonitorDevices;
             $ctrl.refreshDomoticzDevices = refreshDomoticzDevices;
 
             $ctrl.$onInit = function () {
@@ -150,6 +150,10 @@ define([
                 });
             };
 
+            $rootScope.$on('refresh', function (e) {
+                fetchControllerInfo();
+            });
+
             function selectPlugin(apiDeviceIdx) {
                 $ctrl.selectedApiDeviceIdx = apiDeviceIdx;
                 logmonitor.setControlDeviceIdx(apiDeviceIdx);
@@ -159,10 +163,10 @@ define([
 
                 fetchControllerInfo();
                 fetchPluginInfo()
-                fetchlogmonitorDevices();
+                fetchLogmonitorDevices();
             }
 
-            function fetchlogmonitorDevices() {
+            function fetchLogmonitorDevices() {
                 return logmonitor.sendRequest('getdevices').then(function (devices) {
                     $ctrl.logmonitorDevices = devices.map(function (device) {
                         return Object.assign({
@@ -176,7 +180,7 @@ define([
 
             function fetchControllerInfo() {
                 return logmonitor.sendRequest('getstatus').then(function (data) {
-                    $ctrl.controllerInfo = data.output;
+                    $ctrl.controllerInfo = data;
                 });
             }
 
@@ -190,13 +194,12 @@ define([
                 if ($ctrl.controllerInfo.error) {
                     return `${$ctrl.controllerInfo.error}`;
                 }
-                return `${$ctrl.controllerInfo.BackendState}`;
+                return `${$ctrl.controllerInfo.status}`;
             }
 
             function getVersionString() {
-                var logmonitor = `v.${$ctrl.controllerInfo.Version}`;
                 var plugin = `v.${$ctrl.pluginInfo.Version}`
-                return `plugin: ${plugin}, logmonitor: ${logmonitor}`;
+                return `plugin: ${plugin}`;
             }
 
             function refreshDomoticzDevices() {

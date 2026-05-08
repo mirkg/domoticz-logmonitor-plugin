@@ -48,3 +48,9 @@ def get_plugin_config(key = None):
     }
 
     return config[key] if key in config else config
+
+def remove(device_id, unit):
+    device = get_device(device_id, unit)
+
+    if (device != None):
+        device.Delete()

@@ -4,7 +4,7 @@ define(['app', 'ace', 'ace-language-tools'], function(app) {
         controller: logmonitorStatusController
     })
 
-    function logmonitorStatusController($scope, $element, bootbox, logmonitor) {
+    function logmonitorStatusController($scope, $rootScope, $element, bootbox, logmonitor) {
         var $ctrl = this;
         var aceEditor;
 
@@ -12,6 +12,10 @@ define(['app', 'ace', 'ace-language-tools'], function(app) {
         $ctrl.$onInit = function() {
             fetchStatus();
         }
+
+        $rootScope.$on('refresh', function (e) {
+            fetchStatus();
+        });
 
         function fetchStatus() {
             return logmonitor.sendRequest('getstatus').then(function(status) {
@@ -30,7 +34,9 @@ define(['app', 'ace', 'ace-language-tools'], function(app) {
                 ace.config.setModuleUrl("ace/mode/json_worker", "/templates/logmonitor/ace_worker_json.js");
                 aceEditor.setTheme('ace/theme/xcode');
                 aceEditor.setValue(JSON.stringify(status, null, '\t'));
+                aceEditor.resize();
                 aceEditor.getSession().setMode('ace/mode/json');
+                aceEditor.$blockScrolling = Infinity;
                 aceEditor.gotoLine(1);
                 aceEditor.scrollToLine(1, true, true);
             }).catch(function() {

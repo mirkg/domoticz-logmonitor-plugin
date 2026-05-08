@@ -6,6 +6,8 @@
         <p>Manage in Custom plugin page.</p>
     </description>
     <params>
+        <param field="Mode2" label="Monitors restart interval" width="300px" default="300">
+        </param>
         <param field="Mode3" label="Debug" width="75px">
             <options>
                 <option label="Verbose" value="Verbose"/>
@@ -36,10 +38,10 @@ class BasePlugin:
 
         self.install()
 
-        self.logmonitor = LogMonitor()
+        self.logmonitor = LogMonitor(int(Parameters["Mode2"].strip()))
         self.api = API(self.logmonitor, self.onApiCommand)
 
-        self.logmonitor.start()
+        self.logmonitor.start(Devices)
 
     def checkDevices(self):
         domoticz.debug("checkDevices called")

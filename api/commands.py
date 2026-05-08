@@ -6,4 +6,7 @@ commands = dict({
     'getstatus': GetStatus,
     'getdevices': GetDevices,
     'addmonitor': AddMonitor,
+    'deletemonitor': DeleteMonitor,
+    'resetmonitor': ResetMonitor,
+    'updatemonitor': UpdateMonitor,
 })

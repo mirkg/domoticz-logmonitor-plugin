@@ -10,10 +10,63 @@ define(['app', 'app/devices/Devices.js'], function(app) {
                 $ctrl.isSaving = true;
 
                 logmonitor.sendRequest('addmonitor', {
+                    name: $ctrl.name,
                     path: $ctrl.filePath,
                     regex: $ctrl.regex,
+                    query: $ctrl.query,
                 }).then(function() {
                     $scope.$close();
+                });
+            }
+        }
+    };
+
+    var deviceUpdateModal = {
+        templateUrl: 'app/logmonitor/deviceUpdateModal.html',
+        controllerAs: '$ctrl',
+        controller: function($scope, logmonitor) {
+            var $ctrl = this;
+            $ctrl.device = $scope.device;
+            $ctrl.name = $ctrl.device.Name;
+            $ctrl.filePath = $ctrl.device.LogPath;
+            $ctrl.regex = $ctrl.device.Regex;
+            $ctrl.query = $ctrl.device.Query;
+
+            $ctrl.updateLogMonitor = function() {
+                $ctrl.isSaving = true;
+
+                logmonitor.sendRequest('updatemonitor', {
+                    device: $ctrl.device,
+                    name: $ctrl.name,
+                    path: $ctrl.filePath,
+                    regex: $ctrl.regex,
+                    query: $ctrl.query,
+                }).then(function() {
+                    $scope.$close();
+                });
+            }
+        }
+    };
+
+    var deviceRemoveModal = {
+        templateUrl: 'app/logmonitor/deviceRemoveModal.html',
+        controllerAs: '$ctrl',
+        controller: function($scope, logmonitor, bootbox) {
+            var $ctrl = this;
+            $ctrl.device = $scope.device;
+            $ctrl.removeDomoticzDevices = true;
+
+            $ctrl.removeDevice = function() {
+                $ctrl.isSaving = true;
+
+                logmonitor.sendRequest('deletemonitor', {
+                    device: $ctrl.device,
+                    removeDomoticzDevices: $ctrl.removeDomoticzDevices
+                }).then(function() {
+                    $scope.$close();
+                }).catch(function(error) {
+                    $ctrl.isSaving = false;
+                    bootbox.alert(error);
                 });
             }
         }
@@ -40,7 +93,7 @@ define(['app', 'app/devices/Devices.js'], function(app) {
         controller: logmonitorDevicesTableController,
     });
 
-    function logmonitorDevicesController($scope, $uibModal, logmonitor) {
+    function logmonitorDevicesController($scope, $rootScope, $uibModal, logmonitor) {
         var $ctrl = this;
 
         $ctrl.selectlogmonitorDevice = selectlogmonitorDevice;
@@ -52,6 +105,7 @@ define(['app', 'app/devices/Devices.js'], function(app) {
             if (changes.domoticzDevices) {
                 $ctrl.selectlogmonitorDevice($ctrl.selectedlogmonitorDevice)
             }
+            $rootScope.$broadcast('refresh');
         };
         $ctrl.addLogMonitor = addLogMonitor;
 
@@ -83,10 +137,62 @@ define(['app', 'app/devices/Devices.js'], function(app) {
                 order: [[0, 'asc']],
                 columns: [
                     { title: 'ID', data: 'ID' },
+                    { title: 'Name', data: 'Name' },
                     { title: 'LogPath', width: '150px', data: 'LogPath' },
+                    { title: 'Query', width: '150px', data: 'Query' },
                     { title: 'Regex', data: 'Regex' },
+                    { title: 'Value', data: 'Value' },
+                    {
+                        title: '',
+                        className: 'actions-column',
+                        width: '80px',
+                        orderable: false,
+                        render: actionsRenderer
+                    },
                 ],
             }));
+
+            table.on('click', '.js-restart-device-counter', function() {
+                var device = table.api().row($(this).closest('tr')).data();
+
+                return logmonitor.sendRequest('resetmonitor', device)
+                    .then(function() {
+                        //$scope.$close();
+                    })
+                    .catch(function(error) {
+                        bootbox.alert(error);
+                    });
+
+                $scope.$apply();
+                return false;
+            });
+
+            table.on('click', '.js-update-device', function() {
+                var row = table.api().row($(this).closest('tr')).data();
+                var scope = $scope.$new(true);
+                scope.device = row;
+
+                $uibModal
+                    .open(Object.assign({ scope: scope }, deviceUpdateModal)).result
+                    .then($ctrl.onUpdate);
+
+                $scope.$apply();
+                return false;
+            })
+
+            table.on('click', '.js-remove-device', function() {
+                var row = table.api().row($(this).closest('tr')).data();
+                var scope = $scope.$new(true);
+                scope.device = row;
+                scope.removeDomoticzDevices = true;
+
+                $uibModal
+                    .open(Object.assign({ scope: scope }, deviceRemoveModal)).result
+                    .then($ctrl.onUpdate);
+
+                $scope.$apply();
+                return false;
+            })
 
             table.on('select.dt', function(event, row) {
                 $ctrl.onSelect({ device: row.data() });
@@ -128,6 +234,14 @@ define(['app', 'app/devices/Devices.js'], function(app) {
 
         function jsonRenderer(data, type, row) {
             return JSON.stringify(data);
+        }
+
+        function actionsRenderer(data, type, row) {
+            var actions = [];
+            actions.push('<button class="btn btn-icon js-restart-device-counter" title="' + $.t('Restart counter') + '"><img src="images/restart.png" /></button>');
+            actions.push('<button class="btn btn-icon js-update-device" title="' + $.t('Edit') + '"><img src="images/rename.png" /></button>');
+            actions.push('<button class="btn btn-icon js-remove-device" title="' + $.t('Remove') + '"><img src="images/delete.png" /></button>');
+            return actions.join('&nbsp;');
         }
     }
 });
