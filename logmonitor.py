@@ -24,10 +24,15 @@ class ProcessorThread(threading.Thread):
         return self._started_at
 
     def stop(self):
-        self._stop.set()
         domoticz.debug("stop: " + self.devid)
+        self._stop.set()
         if self.process != None:
-            self.process.stdout.close()
+            if self.process.stdin.writable():
+                try:
+                    self.process.stdin.write('\x03'.encode())
+                    self.process.stdin.flush()
+                except:
+                    pass
             self.process.terminate()
 
     def stopped(self):
@@ -55,7 +60,7 @@ class ProcessorThread(threading.Thread):
             cmd = self.prepare_cmd()
             regex = re.compile(r"" + self.dev_opts['regex'])
 
-            self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             #stdout, stderr = self.process.communicate(timeout=self.timeout)
             domoticz.debug("start: " + self.devid)
 
@@ -128,7 +133,7 @@ class LogMonitor:
             try:
                 for t in self.threads.values():
                     t.stop()
-                    t.join(timeout=1)
+                    #t.join(timeout=1)
                 for devid in self.ndevices:
                     self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options, "timeout": self.restart_interval + 5})
                 for t in self.threads.values():
@@ -152,7 +157,7 @@ class LogMonitor:
                 self.status['status'] = 'running'
                 for devid in self.threads:
                     stat = 'running ' + str(now - self.threads[devid].started_at()) + ' seconds'
-                    if not self.threads[devid].is_alive():
+                    if self.threads[devid].stopped():
                         stat = 'error: ' + self.threads[devid].get_error()
                         self.status['status'] = 'error'
                     with self.lock:
