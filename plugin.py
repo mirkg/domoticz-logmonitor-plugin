@@ -1,5 +1,5 @@
 """
-<plugin key="LogMonitor" name="LogMonitor" version="0.1.1">
+<plugin key="LogMonitor" name="LogMonitor" version="0.1.2">
     <description>
         <h2>LogMonitor Plugin</h2>
         <p>Plugin to monitor logs streams for specific patterns.</p>

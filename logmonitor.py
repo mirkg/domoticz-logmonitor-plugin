@@ -27,6 +27,7 @@ class ProcessorThread(threading.Thread):
         self._stop.set()
         domoticz.debug("stop: " + self.devid)
         if self.process != None:
+            self.process.stdout.close()
             self.process.terminate()
 
     def stopped(self):
