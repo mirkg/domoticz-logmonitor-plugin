@@ -2,7 +2,10 @@
 
 ## Overview
 
-This Domoticz plugin allow to monitori logs streams and match specific patterns to update devices.
+This Domoticz plugin allow to monitor logs streams and match specific patterns which update domoticz counter devices.
+
+All defined monitors are restarted with defined interval to match new logfiles based on path pattern.
+Each monitor after start only follow logs from start time to prevent false results for same matches.
 
 ## Run
 
@@ -24,8 +27,9 @@ It is possible to monitor log file(s) by providing path pattern like
 ```
 or use journalctl query like
 ```
--t kernel -n1000
+-t kernel
 ```
+Use Regex field to match specific log content.
 
 ## License
 
