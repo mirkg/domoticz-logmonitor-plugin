@@ -141,6 +141,7 @@ define(['app', 'app/devices/Devices.js'], function(app) {
                     { title: 'LogPath', width: '150px', data: 'LogPath' },
                     { title: 'Query', width: '150px', data: 'Query' },
                     { title: 'Regex', data: 'Regex' },
+                    { title: 'LastUpdate', data: 'LastUpdate' },
                     { title: 'Value', data: 'Value' },
                     {
                         title: '',

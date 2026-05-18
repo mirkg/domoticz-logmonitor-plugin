@@ -14,8 +14,10 @@ class ProcessorThread(threading.Thread):
         self._stop = threading.Event()
         self.devid = kwargs['devid']
         self.dev_opts = kwargs['opts']
+        self.timeout = kwargs['timeout']
         self.update_queue = args[0]
         self.error = ''
+        self.process = None
         self._started_at = int(time.time())
 
     def started_at(self):
@@ -23,6 +25,9 @@ class ProcessorThread(threading.Thread):
 
     def stop(self):
         self._stop.set()
+        domoticz.debug("stop: " + self.devid)
+        if self.process != None:
+            self.process.terminate()
 
     def stopped(self):
         return self._stop.is_set()
@@ -49,23 +54,29 @@ class ProcessorThread(threading.Thread):
             cmd = self.prepare_cmd()
             regex = re.compile(r"" + self.dev_opts['regex'])
 
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            #stdout, stderr = self.process.communicate(timeout=self.timeout)
+            domoticz.debug("start: " + self.devid)
+
             #handle cmd stderr to self.error
             try:
-                ret_code = process.wait(timeout=3)
+                ret_code = self.process.wait(timeout=3)
                 if not ret_code == None:
-                    self.error = process.stderr.read().decode()
+                    self.error = self.process.stderr.read().decode()
                     self.stop()
             except:
                 pass
             #handle stdout as stream
-            for line in iter(lambda: process.stdout.readline(), b""):
+            for line in iter(lambda: self.process.stdout.readline(), b""):
                 if self.stopped():
                     break
                 match = re.search(regex, line.decode())
                 if not match == None:
                     domoticz.debug("found match for device: " + self.devid)
                     self.update_queue.put(self.devid)
+            domoticz.debug("stopped: " + self.devid)
+        except subprocess.TimeoutExpired:
+            domoticz.debug("timeouted: " + self.devid)
         except Exception as ex:
             domoticz.debug('thread error with output=[' + str(traceback.format_exc().splitlines()) + ']')
 
@@ -91,7 +102,7 @@ class LogMonitor:
         self.read_all_devices(devs)
         try:
             for devid in self.ndevices:
-                self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options})
+                self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options, "timeout": self.restart_interval + 5})
             for t in self.threads.values():
                 t.start()
         except Exception as ex:
@@ -102,6 +113,7 @@ class LogMonitor:
         try:
             for t in self.threads.values():
                 t.stop()
+            for t in self.threads.values():
                 t.join(timeout=3)
         except Exception as ex:
             domoticz.debug('stop failed with output=[' + str(traceback.format_exc().splitlines()) + ']')
@@ -115,9 +127,9 @@ class LogMonitor:
             try:
                 for t in self.threads.values():
                     t.stop()
-                    t.join(timeout=3)
+                    t.join(timeout=1)
                 for devid in self.ndevices:
-                    self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options})
+                    self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options, "timeout": self.restart_interval + 5})
                 for t in self.threads.values():
                     t.start()
             except Exception as ex:
@@ -208,7 +220,7 @@ class LogMonitor:
 
     def devices(self):
         devs = []
-        #keys = ['ID', 'Name' 'LogPath', 'Query', 'Regex', 'Value']
+        #keys = ['ID', 'Name' 'LogPath', 'Query', 'Regex', 'LastUpdate', 'Value']
         try:
             for devid in self.ndevices:
                 ndev = {}
@@ -218,6 +230,7 @@ class LogMonitor:
                 ndev['LogPath'] = str(opts.get('path', ''))
                 ndev['Query'] = str(opts.get('query', ''))
                 ndev['Regex'] = str(opts.get('regex', ''))
+                ndev['LastUpdate']= str(self.ndevices[devid].LastUpdate)
                 ndev['Value'] = str(self.ndevices[devid].sValue)
                 devs.append(ndev)
         except Exception as ex:
@@ -242,7 +255,7 @@ class LogMonitor:
             with self.lock:
                 self.ndevices[devid] = self.create_domoticz_dev(ndev)
                 self.nextDeviceId += 1
-            self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options})
+            self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options, "timeout": self.restart_interval + 5})
             self.threads[devid].start()
         except Exception as ex:
             domoticz.debug('addmonitor failed with output=[' + str(traceback.format_exc().splitlines()) + ']')
