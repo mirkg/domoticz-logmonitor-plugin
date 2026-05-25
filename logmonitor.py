@@ -1,6 +1,7 @@
 
 import domoticz
 import re
+import signal
 import subprocess
 import threading
 import time
@@ -23,6 +24,9 @@ class ProcessorThread(threading.Thread):
     def started_at(self):
         return self._started_at
 
+    def is_journal(self):
+        return 'query' in self.dev_opts and self.dev_opts['query'] != ''
+
     def stop(self):
         domoticz.debug("stop: " + self.devid)
         self._stop.set()
@@ -31,9 +35,11 @@ class ProcessorThread(threading.Thread):
                 try:
                     self.process.stdin.write('\x03'.encode())
                     self.process.stdin.flush()
+                    self.process.send_signal(signal.SIGINT)
+                    self.process.send_signal(signal.CTRL_C_EVENT)
                 except:
                     pass
-            self.process.terminate()
+                self.process.kill()
 
     def stopped(self):
         return self._stop.is_set()
@@ -131,13 +137,14 @@ class LogMonitor:
             self.last_restart = now
             domoticz.debug('restarting monitors threads')
             try:
+                for devid in self.threads.keys():
+                    if not self.threads[devid].is_journal():
+                        self.threads[devid].stop()
+                        #self.threads[devid].join(timeout=1)
+                        self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options, "timeout": self.restart_interval + 5})
                 for t in self.threads.values():
-                    t.stop()
-                    #t.join(timeout=1)
-                for devid in self.ndevices:
-                    self.threads[devid] = ProcessorThread(args=(self.update_queue,), kwargs={"devid": devid, "opts": self.ndevices[devid].Options, "timeout": self.restart_interval + 5})
-                for t in self.threads.values():
-                    t.start()
+                    if not t.is_journal():
+                        t.start()
             except Exception as ex:
                 domoticz.error('restart_monitors failed with output=[' + str(traceback.format_exc().splitlines()) + ']')
 
@@ -255,7 +262,7 @@ class LogMonitor:
         domoticz.debug('addmonitor: ' + str(params))
         try:
             opts = {'path': str(params['path']), 'query': str(params['query']), 'regex': str(params['regex'])}
-            opts['DisableLogAutoUpdate'] = 'true'
+            #opts['DisableLogAutoUpdate'] = 'true'
             devid = str(self.nextDeviceId)
             ndev = {'id': devid, 'name': self.device_name_prefix + params['name'], 'type': 'Counter Incremental', 'stype':3, 'opts': opts}
             with self.lock:
